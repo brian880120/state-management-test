@@ -10,6 +10,7 @@ export const CounterContextProvider = ({ children }) => {
   const value = {
     count: state.count,
     step: state.step,
+    childCount: state.childCount,
     tick: () => {
       dispatch({
         type: counterActions.TICK,
