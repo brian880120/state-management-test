@@ -8,6 +8,7 @@ authors = ["bo dai<bobriandai@gmail.com>"]
 
 [dependencies]
 anyhow = "1.0.86"
+base64 = "0.22.1"
 clap = { version = "4.5.7", features = ["derive"] }
 csv = "1.3.0"
 duckdb = { version = "0.10.2", features = ["bundled"] }
