@@ -1,16 +1,15 @@
+use std::fs;
+
 use clap::Parser;
 use rcli::{
-    process_csv,
-    process_decode,
-    process_encode,
-    process_genpass,
-    Base64SubCommand,
-    Opts,
-    SubCommand,
+    process_csv, process_decode, process_encode, process_genpass, process_http_serve, process_text_generate, process_text_sign, process_text_verify, Base64SubCommand, HttpSubCommand, Opts, SubCommand, TextSignFormat, TextSubCommand
 };
 use anyhow::Result;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
     let opts = Opts::parse();
 
     match opts.cmd {
@@ -20,19 +19,52 @@ fn main() -> Result<()> {
             } else {
                 format!("output.{}", opts.format)
             };
-            process_csv(&opts.input, output, opts.format)?;
+            process_csv(&opts.input, output, opts.format)?
         },
         SubCommand::GenPass(opts) => {
-            process_genpass(&opts)?;
+            let password = process_genpass(&opts)?;
+            println!("Password: {}", password);
         },
         SubCommand::Base64(subcmd) => match subcmd {
             Base64SubCommand::Encode(opts) => {
-                process_encode(&opts.input, opts.format)?;
+                let encoded = process_encode(&opts.input, opts.format)?;
+                println!("Encoded: {}", encoded);
             },
             Base64SubCommand::Decode(opts) => {
-                process_decode(&opts.input, opts.format)?;
+                let decoded = process_decode(&opts.input, opts.format)?;
+                let decoded = String::from_utf8(decoded)?;
+                println!("Decoded: {}", decoded);
+            },
+        },
+        SubCommand::Text(subcmd) => match subcmd {
+            TextSubCommand::Sign(opts) => {
+                let sig = process_text_sign(&opts.input, &opts.key, opts.format)?;
+                println!("Signature: {}", sig);
+            },
+            TextSubCommand::Verify(opts) => {
+                let verified = process_text_verify(&opts.input, &opts.sig, opts.format, &opts.key)?;
+                println!("Verified: {}", verified);
+            },
+            TextSubCommand::Generate(opts) => {
+                let key = process_text_generate(opts.format)?;
+                match opts.format {
+                    TextSignFormat::Blake3 => {
+                        let name = opts.output.join("blake3.txt");
+                        fs::write(name, &key[0])?;
+                    },
+                    TextSignFormat::Ed25519 => {
+                        let name = &opts.output;
+                        fs::write(name.join("ed25519.sk"), &key[0])?;
+                        fs::write(name.join("ed25519.pk"), &key[1])?;
+                    },
+                }
+            },
+        },
+        SubCommand::Http(cmd) => match cmd {
+            HttpSubCommand::Serve(opts) => {
+                process_http_serve(opts.dir, opts.port).await?;
             }
-        }
+        },
     }
     Ok(())
 }
